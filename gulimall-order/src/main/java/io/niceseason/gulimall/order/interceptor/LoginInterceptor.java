@@ -21,6 +21,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         String requestURI = request.getRequestURI();
         AntPathMatcher matcher = new AntPathMatcher();
         AntPathMatcher matcher1 = new AntPathMatcher();
+        AntPathMatcher matcher2 = new AntPathMatcher();
         boolean match1 = matcher.match("/order/order/infoByOrderSn/**", requestURI);
         boolean match2 = matcher.match("/payed/**", requestURI);
         if (match1||match2) return true;
