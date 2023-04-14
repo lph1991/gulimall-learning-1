@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
-@RestControllerAdvice(basePackages = "io.niceseason.gulimall.product.controller")
+@RestControllerAdvice(basePackages = "io.niceseason.gulimall.product.controller" )
 public class GulimallExceptionAdvice {
 
     @ExceptionHandler(value = {MethodArgumentNotValidException.class})
@@ -25,7 +25,7 @@ public class GulimallExceptionAdvice {
             map.put(field, message);
         });
         log.error("数据校验出现问题:{},异常类型{}",excetion.getMessage(),excetion.getClass());
-        return R.error(BizCodeEnum.VAILD_EXCEPTION.getCode(), BizCodeEnum.VAILD_EXCEPTION.getMsg()).put("data", map);
+        return  R.error(BizCodeEnum.VAILD_EXCEPTION.getCode(), BizCodeEnum.VAILD_EXCEPTION.getMsg()).put("data", map);
     }
 
 

@@ -58,7 +58,7 @@ public class BrandController {
      * 保存
      */
     @RequestMapping("/save")
-    public R save(@Validated(value = {AddGroup.class}) @RequestBody BrandEntity brand/*, BindingResult result*/){
+    public R save( @Validated(value = {AddGroup.class}) @RequestBody BrandEntity brand/*, BindingResult result*/){
 		brandService.save(brand);
         return R.ok();
 //        if (result.hasErrors()){
