@@ -13,6 +13,10 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+
+/**
+ * 库存服务监听死信队列
+ */
 @Slf4j
 @Component
 @RabbitListener(queues = {"stock.release.stock.queue"})

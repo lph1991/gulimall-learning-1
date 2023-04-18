@@ -106,6 +106,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         OrderConfirmVo confirmVo = new OrderConfirmVo();
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
         CompletableFuture<Void> itemAndStockFuture = CompletableFuture.supplyAsync(() -> {
+//            解决办法
+//            在异步方法内部重新设置 上下文信息
             RequestContextHolder.setRequestAttributes(requestAttributes);
             //1. 查出所有选中购物项
             List<OrderItemVo> checkedItems = cartFeignService.getCheckedItems();

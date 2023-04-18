@@ -12,6 +12,7 @@ import javax.servlet.http.HttpSession;
 
 /**
  * 登录拦截器，未登录的用户不能进入订单服务
+ * 首先订单业务都需要登录状态，设置一个全局拦截器LoginInterceptor
  */
 public class LoginInterceptor implements HandlerInterceptor {
     public static ThreadLocal<MemberResponseVo> loginUser = new ThreadLocal<>();
