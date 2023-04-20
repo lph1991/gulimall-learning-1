@@ -71,7 +71,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     private WareFeignService wareFeignService;
 
     @Autowired
-    private ThreadPoolExecutor executor;
+    private ThreadPoolExecutor threadPoolExecutor;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -102,39 +102,50 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
 
     @Override
     public OrderConfirmVo confirmOrder() {
+        // 获取当前用户登录的信息
         MemberResponseVo memberResponseVo = LoginInterceptor.loginUser.get();
+        // 构建OrderConfirmVo
         OrderConfirmVo confirmVo = new OrderConfirmVo();
+        //TODO :获取当前线程请求头信息(解决Feign异步调用丢失请求头问题)
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        // 开启第一个异步任务
         CompletableFuture<Void> itemAndStockFuture = CompletableFuture.supplyAsync(() -> {
 //            解决办法
 //            在异步方法内部重新设置 上下文信息
+
+            //每一个线程都来共享之前的请求数据
             RequestContextHolder.setRequestAttributes(requestAttributes);
             //1. 查出所有选中购物项
+            //2、远程查询购物车所有选中的购物项
             List<OrderItemVo> checkedItems = cartFeignService.getCheckedItems();
             confirmVo.setItems(checkedItems);
             return checkedItems;
-        }, executor).thenAcceptAsync((items) -> {
+            //feign在远程调用之前要构造请求，调用很多的拦截器
+        }, threadPoolExecutor).thenAcceptAsync((items) -> {
             //4. 库存
             List<Long> skuIds = items.stream().map(OrderItemVo::getSkuId).collect(Collectors.toList());
             Map<Long, Boolean> hasStockMap = wareFeignService.getSkuHasStocks(skuIds).stream().collect(Collectors.toMap(SkuHasStockVo::getSkuId, SkuHasStockVo::getHasStock));
             confirmVo.setStocks(hasStockMap);
-        }, executor);
-
+        }, threadPoolExecutor);
+//开启第二个异步任务
         //2. 查出所有收货地址
         CompletableFuture<Void> addressFuture = CompletableFuture.runAsync(() -> {
             List<MemberAddressVo> addressByUserId = memberFeignService.getAddressByUserId(memberResponseVo.getId());
             confirmVo.setMemberAddressVos(addressByUserId);
-        }, executor);
+        }, threadPoolExecutor);
 
         //3. 积分
         confirmVo.setIntegration(memberResponseVo.getIntegration());
 
         //5. 总价自动计算
         //6. 防重令牌
+//        在给订单确认页返回数据时，生成一个令牌Token。
+//        核心代码：
         String token = UUID.randomUUID().toString().replace("-", "");
         redisTemplate.opsForValue().set(OrderConstant.USER_ORDER_TOKEN_PREFIX + memberResponseVo.getId(), token, 30, TimeUnit.MINUTES);
         confirmVo.setOrderToken(token);
         try {
+            // 异步编排
             CompletableFuture.allOf(itemAndStockFuture, addressFuture).get();
         } catch (InterruptedException e) {
             e.printStackTrace();
