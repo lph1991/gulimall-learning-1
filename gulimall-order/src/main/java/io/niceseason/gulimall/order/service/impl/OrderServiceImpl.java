@@ -108,6 +108,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         OrderConfirmVo confirmVo = new OrderConfirmVo();
         //TODO :获取当前线程请求头信息(解决Feign异步调用丢失请求头问题)
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+//        在进行Feign远程调用时，几个没有上下关联的信息完全可以通过异步方式进行同时查询。这样可以节约大量时间。
         // 开启第一个异步任务
         CompletableFuture<Void> itemAndStockFuture = CompletableFuture.supplyAsync(() -> {
 //            解决办法
