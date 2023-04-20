@@ -15,12 +15,19 @@ import java.util.HashMap;
 @EnableRabbit
 @Configuration
 public class MyRabbitmqConfig {
+    /**
+     * 使用JSON序列化机制，进行消息转换
+     * @return
+     */
     @Bean
     public MessageConverter messageConverter() {
         //在容器中导入Json的消息转换器
         return new Jackson2JsonMessageConverter();
     }
-
+    /**
+     * 库存服务默认的交换机
+     * @return
+     */
     @Bean
     public Exchange stockEventExchange() {
         return new TopicExchange("stock-event-exchange", true, false);
@@ -37,6 +44,7 @@ public class MyRabbitmqConfig {
         arguments.put("x-dead-letter-routing-key", "stock.release");
         // 消息过期时间 2分钟
         arguments.put("x-message-ttl", 120000);
+//        new Queue("stock.delay.queue"
         return new Queue("stock.delay.queue", true, false, false, arguments);
     }
 

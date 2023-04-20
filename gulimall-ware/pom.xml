@@ -20,6 +20,7 @@
     </properties>
 
     <dependencies>
+        <!-- 使用高级消息队列来解决分布式事务一致性 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
