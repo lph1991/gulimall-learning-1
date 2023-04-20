@@ -16,6 +16,7 @@ import java.util.HashMap;
 @Configuration
 public class MyRabbitmqConfig {
     /**
+     * 如果一种语言 你听不懂 那对你就是没用的
      * 使用JSON序列化机制，进行消息转换
      * @return
      */
