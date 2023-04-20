@@ -233,6 +233,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
             //关单后发送消息通知其他服务进行关单相关的操作，如解锁库存
             OrderTo orderTo = new OrderTo();
             BeanUtils.copyProperties(newOrderEntity,orderTo);
+//            //给MQ发送消息
             rabbitTemplate.convertAndSend("order-event-exchange", "order.release.other",orderTo);
         }
     }

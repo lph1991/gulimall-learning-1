@@ -152,6 +152,8 @@ public class WareSkuServiceImpl extends ServiceImpl<WareSkuDao, WareSkuEntity> i
                         StockDetailTo detailTo = new StockDetailTo();
                         BeanUtils.copyProperties(detailEntity,detailTo);
                         lockedTo.setDetailTo(detailTo);
+                        //给MQ发送消息
+//                        https://blog.csdn.net/suchahaerkang/article/details/109131090 然后去RMQ管理界面可以看到创建的消息已经成功了。
                         rabbitTemplate.convertAndSend("stock-event-exchange","stock.locked",lockedTo);
 
                         lock = true;
