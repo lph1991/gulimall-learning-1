@@ -143,31 +143,56 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         }
         return confirmVo;
     }
-
+//     * 提交订单                    提交订单增加订单创建成功，发送消息给MQ
+//     * @param vo
+//     * @return
+//             */
+//             // @Transactional(isolation = Isolation.READ_COMMITTED) 设置事务的隔离级别
+//             // @Transactional(propagation = Propagation.REQUIRED)   设置事务的传播级别
+//             ————————————————
+//    版权声明：本文为CSDN博主「我是陈旭原」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+//    原文链接：https://blog.csdn.net/suchahaerkang/article/details/109131090
 //    @GlobalTransactional
     @Transactional
     @Override
     public SubmitOrderResponseVo submitOrder(OrderSubmitVo submitVo) {
+        //工作小插曲：让你问问题，你明知道对方说的听不懂，还要让你问，是不是为难你，
+        //而且 你问了之后 对方在讲的时候，他也不认真听，这又是一个问题
+
         SubmitOrderResponseVo responseVo = new SubmitOrderResponseVo();
         responseVo.setCode(0);
+        //去创建、下订单、验令牌、验价格、锁定库存...
+        //获取当前用户登录的信息
         //1. 验证防重令牌
         MemberResponseVo memberResponseVo = LoginInterceptor.loginUser.get();
+        responseVo.setCode(0);
+        //1、验证令牌是否合法【令牌的对比和删除必须保证原子性】
         String script= "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+        //通过lua脚本原子验证令牌和删除令牌
         Long execute = redisTemplate.execute(new DefaultRedisScript<>(script,Long.class), Arrays.asList(OrderConstant.USER_ORDER_TOKEN_PREFIX + memberResponseVo.getId()), submitVo.getOrderToken());
         if (execute == 0L) {
             //1.1 防重令牌验证失败
             responseVo.setCode(1);
             return responseVo;
         }else {
+            //令牌验证成功
             //2. 创建订单、订单项
             OrderCreateTo order =createOrderTo(memberResponseVo,submitVo);
-
+//2、验证价格
             //3. 验价
             BigDecimal payAmount = order.getOrder().getPayAmount();
             BigDecimal payPrice = submitVo.getPayPrice();
             if (Math.abs(payAmount.subtract(payPrice).doubleValue()) < 0.01) {
+                //金额对比
                 //4. 保存订单
                 saveOrder(order);
+                //4、库存锁定,只要有异常，回滚订单数据
+                //订单号、所有订单项信息(skuId,skuNum,skuName)
+                WareSkuLockVo lockVo = new WareSkuLockVo();
+                lockVo.setOrderSn(order.getOrder().getOrderSn());
+
+                //获取出要锁定的商品数据信息
+
                 //5. 锁定库存
                 List<OrderItemVo> orderItemVos = order.getOrderItems().stream().map((item) -> {
                     OrderItemVo orderItemVo = new OrderItemVo();
@@ -175,16 +200,19 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
                     orderItemVo.setCount(item.getSkuQuantity());
                     return orderItemVo;
                 }).collect(Collectors.toList());
-                WareSkuLockVo lockVo = new WareSkuLockVo();
-                lockVo.setOrderSn(order.getOrder().getOrderSn());
+//                WareSkuLockVo lockVo = new WareSkuLockVo();
+//                lockVo.setOrderSn(order.getOrder().getOrderSn());
                 lockVo.setLocks(orderItemVos);
+                //TODO 调用远程锁定库存的方法
+                //出现的问题：扣减库存成功了，但是由于网络原因超时，出现异常，导致订单事务回滚，库存事务不回滚(解决方案：seata)
+                //为了保证高并发，不推荐使用seata，因为是加锁，并行化，提升不了效率,可以发消息给库存服务
                 R r = wareFeignService.orderLockStock(lockVo);
                 //5.1 锁定库存成功
                 if (r.getCode()==0){
-//                    int i = 10 / 0;
+//                    int i = 10 / 0; // 抛出异常，测试远程回滚
                     responseVo.setOrder(order.getOrder());
                     responseVo.setCode(0);
-
+                     //TODO 订单创建成功，发送消息给MQ
                     //发送消息到订单延迟队列，判断过期订单
                     rabbitTemplate.convertAndSend("order-event-exchange","order.create.order",order.getOrder());
 
@@ -223,6 +251,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     public void closeOrder(OrderEntity orderEntity) {
         //因为消息发送过来的订单已经是很久前的了，中间可能被改动，因此要查询最新的订单
         OrderEntity newOrderEntity = this.getById(orderEntity.getId());
+        //关闭订单之前先查询一下数据库，判断此订单状态是否已支付
+        OrderEntity orderInfo = this.getOne(new QueryWrapper<OrderEntity>().
+                eq("order_sn",orderEntity.getOrderSn()));
+
         //如果订单还处于新创建的状态，说明超时未支付，进行关单
         if (newOrderEntity.getStatus() == OrderStatusEnum.CREATE_NEW.getCode()) {
             OrderEntity updateOrder = new OrderEntity();
@@ -235,6 +267,13 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
             BeanUtils.copyProperties(newOrderEntity,orderTo);
 //            //给MQ发送消息
             rabbitTemplate.convertAndSend("order-event-exchange", "order.release.other",orderTo);
+            try {
+                //TODO 确保每个消息发送成功，给每个消息做好日志记录，(给数据库保存每一个详细信息)保存每个消息的详细信息
+                rabbitTemplate.convertAndSend("order-event-exchange", "order.release.other", orderTo);
+            } catch (Exception e) {
+                //TODO 定期扫描数据库，重新发送失败的消息
+            }
+
         }
     }
 
