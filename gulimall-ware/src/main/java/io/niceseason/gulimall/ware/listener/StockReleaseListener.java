@@ -16,6 +16,16 @@ import java.io.IOException;
 
 /**
  * 库存服务监听死信队列
+ * org.springframework.amqp.core.Message 只能接收简单消息，像字符串、数字这种
+ * @RabbitListener(bindings = {
+ *             @QueueBinding(value = @Queue(
+ *                     value = direct_queue_b),
+ *                     exchange = @Exchange(value = DIRECT_EXCHANGE, type = ExchangeTypes.DIRECT),
+ *                     key = direct_queue_b)
+ *     })
+ * ————————————————
+ * 版权声明：本文为CSDN博主「will_lam」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+ * 原文链接：https://blog.csdn.net/will_lam/article/details/105395116
  */
 @Slf4j
 @Component
