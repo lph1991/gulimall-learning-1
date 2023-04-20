@@ -11,6 +11,8 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 @EnableConfigurationProperties(ThreadPoolConfigProperties.class)
 public class MyThreadPoolConfig {
+//    配置
+//            配置线程池
     @Bean
     public ThreadPoolExecutor threadPoolExecutor(ThreadPoolConfigProperties properties) {
         return new ThreadPoolExecutor(
