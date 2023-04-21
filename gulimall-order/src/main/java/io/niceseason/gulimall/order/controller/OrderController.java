@@ -42,7 +42,7 @@ public class OrderController {
 
 
     /**
-     * 信息
+     * 信息 数据库有值，sql能查到，代码却查不到，写一个controller单独测试一下
      */
     @RequestMapping("/info/{id}")
     public R info(@PathVariable("id") Long id){
